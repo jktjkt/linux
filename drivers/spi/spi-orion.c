@@ -93,6 +93,7 @@ struct orion_direct_acc {
 
 struct orion_child_options {
 	struct orion_direct_acc direct_access;
+	u16			word_delay;
 };
 
 struct orion_spi {
@@ -470,6 +471,8 @@ orion_spi_write_read(struct spi_device *spi, struct spi_transfer *xfer)
 			if (orion_spi_write_read_8bit(spi, &tx, &rx) < 0)
 				goto out;
 			count--;
+			if (orion_spi->child[cs].word_delay)
+				udelay(orion_spi->child[cs].word_delay);
 		} while (count);
 	} else if (word_len == 16) {
 		const u16 *tx = xfer->tx_buf;
@@ -478,6 +481,8 @@ orion_spi_write_read(struct spi_device *spi, struct spi_transfer *xfer)
 		do {
 			if (orion_spi_write_read_16bit(spi, &tx, &rx) < 0)
 				goto out;
+			if (orion_spi->child[cs].word_delay)
+				udelay(orion_spi->child[cs].word_delay);
 			count -= 2;
 		} while (count);
 	}
@@ -733,6 +738,12 @@ static int orion_spi_probe(struct platform_device *pdev)
 			}
 		}
 
+		spi->child[cs].word_delay = 0;
+		if (!of_property_read_u16(np, "linux,spi-wdelay",
+					&spi->child[cs].word_delay))
+			dev_info(&pdev->dev, "%pOF: %dus delay between words\n",
+					np, spi->child[cs].word_delay);
+
 		/*
 		 * Check if an address is configured for this SPI device. If
 		 * not, the MBus mapping via the 'ranges' property in the 'soc'
@@ -743,6 +754,12 @@ static int orion_spi_probe(struct platform_device *pdev)
 		status = of_address_to_resource(pdev->dev.of_node, cs + 1, r);
 		if (status)
 			continue;
+
+		if (spi->child[cs].word_delay) {
+			dev_warn(&pdev->dev,
+				"%pOF linux,spi-wdelay takes preference over a direct-mode", np);
+			continue;
+		}
 
 		/*
 		 * Only map one page for direct access. This is enough for the

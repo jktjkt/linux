@@ -29,6 +29,10 @@ Optional properties:
 		used, the name must be "core", and "axi" (the latter
 		is only for Armada 7K/8K).
 
+Optional properties of child nodes (SPI slave devices):
+- linux,spi-wdelay : If present and non-zero, specifies a delay in
+		     microseconds between words transferred over the SPI bus.
+
 
 Example:
        spi@10600 {
@@ -77,3 +81,19 @@ are used in the default indirect (PIO) mode):
 For further information on the MBus bindings, please see the MBus
 DT documentation:
 Documentation/devicetree/bindings/bus/mvebu-mbus.txt
+
+Example of a per-child inter-word delay:
+
+	spi0: spi@10600 {
+		/* ... */
+
+		some_slave_device@2 {
+			reg = <2>;
+			compatible = "something";
+			/* ... */
+
+			/* Wait 3 microseconds between all words within all
+			SPI transactions */
+			linux,spi-wdelay = /bits/ 16 <3>;
+		};
+	};
