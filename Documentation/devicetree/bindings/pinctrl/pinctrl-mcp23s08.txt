@@ -144,3 +144,38 @@ gpio21: gpio@21 {
 		bias-pull-up;
 	};
 };
+
+Line naming
+===========
+
+Because several gpio_chip instances are hidden below a single device tree
+node, it is necessary to split the names into several child nodes. Ensure
+that the configured addresses match those in the microchip,spi-present-mask:
+
+gpio@0 {
+        compatible = "microchip,mcp23s17";
+        gpio-controller;
+        #gpio-cells = <2>;
+	/* this bitmask has bits #0 (0x01) and #2 (0x04) set */
+        spi-present-mask = <0x05>;
+        reg = <0>;
+        spi-max-frequency = <1000000>;
+
+	gpio-bank@1 {
+		address = <0>;
+		gpio-line-names =
+			"GPA0",
+			"GPA1",
+			...
+			"GPA7",
+			"GPB0",
+			"GPB1",
+			...
+			"GPB7";
+	};
+
+	gpio-bank@2 {
+		address = <2>;
+		gpio-line-names = ...
+	};
+};

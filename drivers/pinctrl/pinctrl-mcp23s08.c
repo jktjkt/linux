@@ -16,6 +16,7 @@
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinconf-generic.h>
+#include "../gpio/gpiolib.h"
 
 /*
  * MCP types supported by driver
@@ -1087,6 +1088,7 @@ static int mcp23s08_probe(struct spi_device *spi)
 	int				status, type;
 	unsigned			ngpio = 0;
 	const struct			of_device_id *match;
+	struct device_node		*np;
 
 	match = of_match_device(of_match_ptr(mcp23s08_spi_of_match), &spi->dev);
 	if (match)
@@ -1149,6 +1151,16 @@ static int mcp23s08_probe(struct spi_device *spi)
 		if (pdata->base != -1)
 			pdata->base += data->mcp[addr]->chip.ngpio;
 		ngpio += data->mcp[addr]->chip.ngpio;
+
+		for_each_available_child_of_node(spi->dev.of_node, np) {
+			u32 chip_addr;
+			status = of_property_read_u32(np, "address", &chip_addr);
+			if (status)
+				continue;
+			if (chip_addr != addr)
+				continue;
+			devprop_gpiochip_set_names(&data->mcp[addr]->chip, of_fwnode_handle(np));
+		}
 	}
 	data->ngpio = ngpio;
 
