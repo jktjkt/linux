@@ -430,7 +430,7 @@ orion_spi_write_read(struct spi_device *spi, struct spi_transfer *xfer)
 	int cs = spi->chip_select;
 	void __iomem *vaddr;
 
-	word_len = spi->bits_per_word;
+	word_len = xfer->bits_per_word;
 	count = xfer->len;
 
 	orion_spi = spi_master_get_devdata(spi->master);
