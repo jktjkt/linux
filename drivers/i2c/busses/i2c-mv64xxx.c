@@ -317,6 +317,14 @@ mv64xxx_i2c_fsm(struct mv64xxx_i2c_data *drv_data, u32 status)
 		drv_data->rc = -ENXIO;
 		break;
 
+	case MV64XXX_I2C_STATUS_BUS_ERR: /* 0x00 */
+		dev_warn(&drv_data->adapter.dev,
+			 "bus error: slave has driven SDA/SCL unexpectedly\n");
+		drv_data->action = MV64XXX_I2C_ACTION_SEND_STOP;
+		mv64xxx_i2c_hw_init(drv_data);
+		drv_data->rc = -EIO;
+		break;
+
 	default:
 		dev_err(&drv_data->adapter.dev,
 			"mv64xxx_i2c_fsm: Ctlr Error -- state: 0x%x, "
