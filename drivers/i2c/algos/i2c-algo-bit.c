@@ -442,8 +442,9 @@ static int readbytes(struct i2c_adapter *i2c_adap, struct i2c_msg *msg)
 			if (inval <= 0 || inval > I2C_SMBUS_BLOCK_MAX) {
 				if (!(flags & I2C_M_NO_RD_ACK))
 					acknak(i2c_adap, 0);
-				dev_err(&i2c_adap->dev, "readbytes: invalid "
-					"block length (%d)\n", inval);
+				dev_err(&i2c_adap->dev,
+					"readbytes: invalid block length (%d)\n",
+					inval);
 				return -EPROTO;
 			}
 			/* The original count value accounts for the extra
