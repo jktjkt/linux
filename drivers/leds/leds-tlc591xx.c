@@ -40,6 +40,9 @@
 
 #define ldev_to_led(c)		container_of(c, struct tlc591xx_led, ldev)
 
+#define TLC591XX_RESET_BYTE_0	0xa5
+#define TLC591XX_RESET_BYTE_1	0x5a
+
 struct tlc591xx_led {
 	bool active;
 	unsigned int led_no;
@@ -51,21 +54,25 @@ struct tlc591xx_priv {
 	struct tlc591xx_led leds[TLC591XX_MAX_LEDS];
 	struct regmap *regmap;
 	unsigned int reg_ledout_offset;
+	struct i2c_client *swrst_client;
 };
 
 struct tlc591xx {
 	unsigned int max_leds;
 	unsigned int reg_ledout_offset;
+	u8 swrst_addr;
 };
 
 static const struct tlc591xx tlc59116 = {
 	.max_leds = 16,
 	.reg_ledout_offset = 0x14,
+	.swrst_addr = 0x6b,
 };
 
 static const struct tlc591xx tlc59108 = {
 	.max_leds = 8,
 	.reg_ledout_offset = 0x0c,
+	.swrst_addr = 0x4b,
 };
 
 static int
@@ -184,6 +191,18 @@ tlc591xx_probe(struct i2c_client *client,
 	err = tlc591xx_set_mode(priv->regmap, MODE2_DIM);
 	if (err < 0)
 		return err;
+
+	priv->swrst_client = devm_i2c_new_dummy_device(dev, client->adapter, tlc591xx->swrst_addr);
+	if (priv->swrst_client) {
+		err = i2c_smbus_write_byte_data(priv->swrst_client,
+				TLC591XX_RESET_BYTE_0, TLC591XX_RESET_BYTE_1);
+		if (err) {
+			dev_warn(dev, "SW reset failed\n");
+		}
+	} else {
+		dev_info(dev, "Skipping reset: address %02x already used\n",
+				tlc591xx->swrst_addr);
+	}
 
 	for_each_child_of_node(np, child) {
 		struct tlc591xx_led *led;
