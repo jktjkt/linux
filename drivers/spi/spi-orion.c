@@ -88,10 +88,6 @@ struct orion_direct_acc {
 	u32			size;
 };
 
-struct orion_child_options {
-	struct orion_direct_acc direct_access;
-};
-
 struct orion_spi {
 	struct spi_master	*master;
 	void __iomem		*base;
@@ -100,7 +96,7 @@ struct orion_spi {
 	const struct orion_spi_dev *devdata;
 	int			unused_hw_gpio;
 
-	struct orion_child_options	child[ORION_NUM_CHIPSELECTS];
+	struct orion_direct_acc	direct_access[ORION_NUM_CHIPSELECTS];
 };
 
 static inline void __iomem *spi_reg(struct orion_spi *orion_spi, u32 reg)
@@ -439,7 +435,7 @@ orion_spi_write_read(struct spi_device *spi, struct spi_transfer *xfer)
 	 * Use SPI direct write mode if base address is available. Otherwise
 	 * fall back to PIO mode for this transfer.
 	 */
-	vaddr = orion_spi->child[cs].direct_access.vaddr;
+	vaddr = orion_spi->direct_access[cs].vaddr;
 
 	if (vaddr && xfer->tx_buf && word_len == 8) {
 		unsigned int cnt = count / 4;
@@ -682,7 +678,6 @@ static int orion_spi_probe(struct platform_device *pdev)
 	}
 
 	for_each_available_child_of_node(pdev->dev.of_node, np) {
-		struct orion_direct_acc *dir_acc;
 		u32 cs;
 		int cs_gpio;
 
@@ -750,13 +745,14 @@ static int orion_spi_probe(struct platform_device *pdev)
 		 * This needs to get extended for the direct SPI-NOR / SPI-NAND
 		 * support, once this gets implemented.
 		 */
-		dir_acc = &spi->child[cs].direct_access;
-		dir_acc->vaddr = devm_ioremap(&pdev->dev, r->start, PAGE_SIZE);
-		if (!dir_acc->vaddr) {
+		spi->direct_access[cs].vaddr = devm_ioremap(&pdev->dev,
+							    r->start,
+							    PAGE_SIZE);
+		if (!spi->direct_access[cs].vaddr) {
 			status = -ENOMEM;
 			goto out_rel_axi_clk;
 		}
-		dir_acc->size = PAGE_SIZE;
+		spi->direct_access[cs].size = PAGE_SIZE;
 
 		dev_info(&pdev->dev, "CS%d configured for direct access\n", cs);
 	}
