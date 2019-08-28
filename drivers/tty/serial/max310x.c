@@ -235,6 +235,10 @@
 #define MAX310x_REV_MASK		(0xf8)
 #define MAX310X_WRITE_BIT		0x80
 
+/* Timeout for external crystal stability */
+#define MAX310X_XTAL_WAIT_RETRIES	20
+#define MAX310X_XTAL_WAIT_DELAY_MS	10
+
 /* MAX3107 specific */
 #define MAX3107_REV_ID			(0xa0)
 
@@ -610,11 +614,14 @@ static int max310x_set_ref_clk(struct device *dev, struct max310x_port *s,
 
 	/* Wait for crystal */
 	if (xtal) {
-		unsigned int val;
-		msleep(10);
-		regmap_read(s->regmap, MAX310X_STS_IRQSTS_REG, &val);
+		unsigned int val = 0, i;
+		for (i = 0; i < MAX310X_XTAL_WAIT_RETRIES && !(val & MAX310X_STS_CLKREADY_BIT); ++i) {
+			msleep(MAX310X_XTAL_WAIT_DELAY_MS);
+			regmap_read(s->regmap, MAX310X_STS_IRQSTS_REG, &val);
+		}
 		if (!(val & MAX310X_STS_CLKREADY_BIT)) {
-			dev_warn(dev, "clock is not stable yet\n");
+			dev_err(dev, "clock is not stable\n");
+			return -EAGAIN;
 		}
 	}
 
@@ -1327,6 +1334,10 @@ static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
 	}
 
 	uartclk = max310x_set_ref_clk(dev, s, freq, xtal);
+	if (uartclk < 0) {
+		ret = uartclk;
+		goto out_uart;
+	}
 	dev_dbg(dev, "Reference clock set to %i Hz\n", uartclk);
 
 	for (i = 0; i < devtype->nr; i++) {
